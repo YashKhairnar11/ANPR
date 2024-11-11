@@ -1,0 +1,9 @@
+train:  C:/Users/aicpl/Desktop/LPR/newDataset/train # Path to the training images
+val: C:/Users/aicpl/Desktop/LPR/newDataset/val   # Path to the validation images
+
+# Number of object classes
+nc: 1  # Update to the number of classes in your dataset
+
+# Class names
+names:
+  0: 'Number plate'  # Replace with your actual class names

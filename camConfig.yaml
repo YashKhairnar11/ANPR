@@ -1,0 +1,28 @@
+cameras:
+  camera_1: 
+    name: 'ptz'
+    ip: '192.168.1.111'
+    base_url: 'http://192.168.1.111'
+    ws_url: 'ws://192.168.1.111/cgi-bin/event-websock/streaming.cgi'
+    rtsp_url: 'rtsp://192.168.1.111'
+
+  camera_2: 
+    name: 'fixed'
+    ip: '192.168.1.112'
+    base_url: 'http://192.168.1.112'
+    ws_url: 'ws://192.168.1.112/cgi-bin/event-websock/streaming.cgi'
+    rtsp_url: 'rtsp://192.168.1.112'
+
+  camera_3: 
+    name: 'random'
+    ip: '192.168.1.112'
+    base_url: 'http://192.168.1.112'
+    ws_url: 'ws://192.168.1.112/cgi-bin/event-websock/streaming.cgi'
+    rtsp_url: 'rtsp://192.168.1.112'
+
+  camera_4: 
+    name: 'random'
+    ip: '192.168.1.112'
+    base_url: 'http://192.168.1.112'
+    ws_url: 'ws://192.168.1.112/cgi-bin/event-websock/streaming.cgi'
+    rtsp_url: 'rtsp://192.168.1.112'
