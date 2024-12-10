@@ -1,0 +1,34 @@
+cameras:
+  - cam1:
+      type: "ptz"
+      task: "Anpr"
+      source: 'rtsp://192.168.1.111'
+      model_used: "ANPRModel"
+      url: 'ws://192.168.1.111/cgi-bin/event-websock/streaming.cgi'
+      base_url: 'http://192.168.1.111'
+
+#   - cam2:
+#       type: "ptz_fixed"
+#       task: "Anpr"
+#       source: 'rtsp://192.168.1.111'
+#       model_used: "ANPRModel"
+#       url: 'ws://192.168.1.111/cgi-bin/event-websock/streaming.cgi'
+#       base_url: 'http://192.168.1.111'
+
+  - cam3:
+      type: "webcam"
+      task: "Detection"
+      source: 0
+      model_used: "YOLOv11DetectionModel"
+
+  - cam4:
+      type: "video"
+      task: "Anpr"
+      source: 'output_video2.mp4'
+      model_used: "ANPRModel"
+
+#   - cam5:
+#       type: "webcam"
+#       task: "Segmentation"
+#       source: 0
+#       model_used: "YOLOv11DetectionModel"
