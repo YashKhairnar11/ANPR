@@ -11,6 +11,7 @@ class Application():
         self.config = config
         self.camera_windows = {}
         self.selected_cameras = []
+        
 
     def load_cameras(self):
         cameras = self.config.get('cameras', [])
@@ -32,7 +33,6 @@ class Application():
     def create_grid_layout(self):
         if not self.selected_cameras:
             return self.create_no_cameras_card()
-        
         grid_rows = []
         for i in range(0, len(self.selected_cameras), 2):
             row_controls = [self.camera_windows[cam].build() for cam in self.selected_cameras[i:i+2]]
@@ -43,7 +43,6 @@ class Application():
                 expand=True,
             )
             grid_rows.append(row)
-
         print(len(grid_rows))  
         return ft.Column(
             controls=grid_rows,

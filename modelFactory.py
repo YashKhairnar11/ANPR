@@ -5,6 +5,7 @@ import cv2
 from sort.sort import Sort
 import base64
 import numpy as np
+import sqlite3,datetime
 
 class BaseModel:
     """A base class for all models. Define the interface here."""
@@ -15,34 +16,101 @@ class BaseModel:
 class YOLOv11DetectionModel(BaseModel):
     def __init__(self, model_path='yolo11n.pt'):
         self.model = YOLO(model_path)
+        self.tracker = Sort()
+        self.to_be_tracked_objects = []
+        self.classes = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light', 10: 
+                        'fire hydrant', 11: 'stop sign', 12: 'parking meter', 13: 'bench', 14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 
+                        20: 'elephant', 21: 'bear', 22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag', 27: 'tie', 28: 'suitcase', 29: 'frisbee', 
+                        30: 'skis', 31: 'snowboard', 32: 'sports ball', 33: 'kite', 34: 'baseball bat', 35: 'baseball glove', 36: 'skateboard', 37: 'surfboard', 38: 'tennis racket', 39: 'bottle', 
+                        40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana', 47: 'apple', 48: 'sandwich', 49: 'orange', 
+                        50: 'broccoli', 51: 'carrot', 52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed', 
+                        60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone', 68: 'microwave', 69: 'oven', 
+                        70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'}
 
-    def predict(self, frame):
-        # Perform detection
-        results = self.model(frame, task="detect")  # Detection task
-        detections = results[0]  # Extract detection results
-        
-        # Plot bounding boxes on the frame
-        for detection in detections.boxes.data.tolist():
-            x1, y1, x2, y2, score, class_id = detection
-            label = f"Class {int(class_id)}: {score:.2f}"
-            
-            # Draw bounding box
-            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)  # Green box
-            
-            # Add label text
-            cv2.putText(
-                frame, 
-                label, 
-                (int(x1), int(y1) - 10), 
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                0.5, 
-                (0, 255, 0), 
-                2, 
-                cv2.LINE_AA
-            )
-        
-        # Return the annotated frame
+    def predict(self,frameDict):
+            frame = frameDict['frame']
+            # Perform inference
+            results = self.model.predict(frame)[0]  #,classes=list(self.vehicle_class.keys())
+            # Store detected vehicle data
+            detected_objects = []
+            for detection in results.boxes.data.tolist():
+                x1, y1, x2, y2, score, class_id = detection
+                label = f"Class {int(class_id)}: {score:.2f}"
+
+                object_data = {
+                    'obj_bbox': [int(x1), int(y1), int(x2), int(y2)],
+                    'type': self.classes[int(class_id)],
+                    'confidence': score,
+                    'trackID':""
+                    }
+                detected_objects.append(object_data)
+                # Create tracking box
+                self.to_be_tracked_objects.append([int(x1), int(y1), int(x2), int(y2), score])
+
+            # Add the detection results to frameDict
+            frameDict['detected_objects'] = detected_objects
+
+            if self.to_be_tracked_objects:
+                track_ids = self.tracker.update(np.asarray(self.to_be_tracked_objects))
+                # matching tracking ids with detections
+                for obj in frameDict['detected_objects']:
+                    bbox = obj['obj_bbox']
+                    for track in track_ids:
+                        if self.boxes_match(bbox,track[:4].tolist()):
+                            obj['trackID'] = int(track[4])
+                            break
+
+            return frameDict
+    
+    def plot_bounding_boxes(self,frame,frameDict,cam_name):
+        # Iterate over each detected object
+        for obj in frameDict.get('detected_objects', []):
+            # Draw bounding box around the vehicle
+            objectType = obj['type']
+            objectID = obj['trackID']
+            object_coords = obj['obj_bbox']
+            xv1, yv1, xv2, yv2 = object_coords
+            frame = cv2.rectangle(frame, (xv1,yv1), (xv2,yv2), (0, 255, 0), 2)  # Green box for vehicle
+            frame = cv2.putText(frame, f"{objectType}", (xv1, yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+ 
+            #update the db if the record doesn't exists already 
+            self.insert_detection(objectID, objectType, cam_name)
+                    
+        # Return the frame with bounding boxes
         return frame
+    
+    @staticmethod
+    def boxes_match(bbox1, bbox2, threshold=5):
+        """Compare two bounding boxes for approximate matching."""
+        return all(abs(float(bbox1[i]) - float(bbox2[i])) <= threshold for i in range(4))
+
+    def insert_detection(self, tracking_id, object_type,cam_name):
+        """Insert a new detection record"""
+        with sqlite3.connect('records.db') as conn:
+            cursor = conn.cursor()
+            try:
+                # Check for existing record
+                cursor.execute(
+                    f"SELECT 1 FROM {cam_name} WHERE ID = ? OR Type = ?", 
+                    (tracking_id, object_type )
+                )
+                if cursor.fetchone():
+                    print(f"TrackingID {tracking_id} already exists.")
+                    return
+
+                # Insert new record
+                detection_time = datetime.datetime.now().strftime("%H:%M:%S")
+                cursor.execute(
+                    f"INSERT INTO {cam_name} (Time, ID, Type) VALUES (?, ?, ?)",
+                    (detection_time, tracking_id, object_type),
+                )
+                conn.commit()
+                
+            except sqlite3.Error as e:
+                print(f"Database error: {e}")
+
+
+
 
 ########### Segmentation Model #################################
 class YOLOv11SegmentationModel(BaseModel):
@@ -52,6 +120,10 @@ class YOLOv11SegmentationModel(BaseModel):
     def predict(self, frame):
         results = self.model(frame, task="segment")  # Segmentation task
         return results[0]
+
+
+
+
 
 ######## ANPR for number plate detection ######################
 class ANPRModel(BaseModel):
@@ -69,7 +141,8 @@ class ANPRModel(BaseModel):
                         60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone', 68: 'microwave', 69: 'oven', 
                         70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'}
         self.vehicle_class = {2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck'}
-           
+       
+        self.to_be_tracked_objects = []
 
     def det_objects(self,frameDict):
             frame = frameDict['frame']
@@ -77,7 +150,6 @@ class ANPRModel(BaseModel):
             results = self.objectModel.predict(frame)[0]  #,classes=list(self.vehicle_class.keys())
             # Store detected vehicle data
             detected_objects = []
-            to_be_tracked_objects = []
             for object in results.boxes.data.tolist():
                 x1_o, y1_o, x2_o, y2_o, score, class_obj = object
                 # Extract relevant information about each detected vehicle
@@ -90,13 +162,13 @@ class ANPRModel(BaseModel):
                     }
                 detected_objects.append(object_data)
                 # Create tracking box
-                to_be_tracked_objects.append([int(x1_o), int(y1_o), int(x2_o), int(y2_o), score])
+                self.to_be_tracked_objects.append([int(x1_o), int(y1_o), int(x2_o), int(y2_o), score])
 
             # Add the detection results to frameDict
             frameDict['detected_objects'] = detected_objects
 
-            if to_be_tracked_objects:
-                track_ids = self.tracker.update(np.asarray(to_be_tracked_objects))
+            if self.to_be_tracked_objects:
+                track_ids = self.tracker.update(np.asarray(self.to_be_tracked_objects))
                 # matching tracking ids with detections
                 for obj in frameDict['detected_objects']:
                     bbox = obj['obj_bbox']
@@ -177,20 +249,21 @@ class ANPRModel(BaseModel):
              ]
         for pattern in patterns:
             if re.match(pattern, ocr_text):
-                state = ocr_text[:2]
-                district = ocr_text[2:4]
-                alphacode = ocr_text[4:6]
-                digits = ocr_text[6:]
+                # state = ocr_text[:2]
+                # district = ocr_text[2:4]
+                # alphacode = ocr_text[4:6]
+                # digits = ocr_text[6:]
                 
-                # # update with corrections
-                # if state not in indian_state_abbreviations:
+                # # # update with corrections
+                # # if state not in indian_state_abbreviations:
                     
                 
-                license_plate_ = f"{state}-{district}-{alphacode}-{digits}"
+                # license_plate_ = f"{state}-{district}-{alphacode}-{digits}"
+                license_plate_  = ocr_text
         return license_plate_
 
 
-    def plot_bounding_boxes(self,frame,frameDict):
+    def plot_bounding_boxes(self,frame,frameDict,cam_name,db_lock):
         """
         Function to plot bounding boxes for detected vehicles and plates on the frame.
         Args:
@@ -207,7 +280,8 @@ class ANPRModel(BaseModel):
             xv1, yv1, xv2, yv2 = object_coords
             frame = cv2.rectangle(frame, (xv1,yv1), (xv2,yv2), (0, 255, 0), 2)  # Green box for vehicle
             frame = cv2.putText(frame, f"{objectType}", (xv1, yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
-    
+ 
+
             if objectType in self.vehicle_class.values():
                 # Check if plates were detected for the vehicle
                 for plate in obj.get('plates', []):
@@ -223,7 +297,32 @@ class ANPRModel(BaseModel):
                     if plate_text != '':
                         frame = cv2.putText(frame, plate_text, (x_min+xv1, y_min+yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,165,0), 2, cv2.LINE_AA)
                          #update the db if the record doesn't exists already 
-                        #self.insert_detection(objectID, objectType, plate_text)
-                   
+                        self.insert_detection(objectID, objectType, plate_text,cam_name,db_lock)
+                    
         # Return the frame with bounding boxes
         return frame
+    
+    def insert_detection(self, tracking_id, vehicle_type, license_number,cam_name, db_lock):
+        """Insert a new detection record"""
+        with db_lock, sqlite3.connect('records.db') as conn:
+            cursor = conn.cursor()
+            try:
+                # Check for existing record
+                cursor.execute(
+                    f"SELECT 1 FROM {cam_name} WHERE ID = ? OR LicenseNumber = ?", 
+                    (tracking_id, license_number)
+                )
+                if cursor.fetchone():
+                    print(f"TrackingID {tracking_id} already exists.")
+                    return
+
+                # Insert new record
+                detection_time = datetime.datetime.now().strftime("%H:%M:%S")
+                cursor.execute(
+                    f"INSERT INTO {cam_name} (Time, ID, Type, LicenseNumber) VALUES (?, ?, ?, ?)",
+                    (detection_time, tracking_id, vehicle_type, license_number),
+                )
+                conn.commit()
+                
+            except sqlite3.Error as e:
+                print(f"Database error: {e}")
