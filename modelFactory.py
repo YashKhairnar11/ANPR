@@ -95,7 +95,7 @@ class YOLOv11DetectionModel(BaseModel):
                     (tracking_id, object_type )
                 )
                 if cursor.fetchone():
-                    print(f"TrackingID {tracking_id} already exists.")
+                    #print(f"TrackingID {tracking_id} already exists.")
                     return
 
                 # Insert new record
@@ -263,7 +263,7 @@ class ANPRModel(BaseModel):
         return license_plate_
 
 
-    def plot_bounding_boxes(self,frame,frameDict,cam_name,db_lock):
+    def plot_bounding_boxes(self,frame,frameDict,cam_name):
         """
         Function to plot bounding boxes for detected vehicles and plates on the frame.
         Args:
@@ -297,14 +297,14 @@ class ANPRModel(BaseModel):
                     if plate_text != '':
                         frame = cv2.putText(frame, plate_text, (x_min+xv1, y_min+yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,165,0), 2, cv2.LINE_AA)
                          #update the db if the record doesn't exists already 
-                        self.insert_detection(objectID, objectType, plate_text,cam_name,db_lock)
+                        self.insert_detection(objectID, objectType, plate_text,cam_name)
                     
         # Return the frame with bounding boxes
         return frame
     
-    def insert_detection(self, tracking_id, vehicle_type, license_number,cam_name, db_lock):
+    def insert_detection(self, tracking_id, vehicle_type, license_number,cam_name):
         """Insert a new detection record"""
-        with db_lock, sqlite3.connect('records.db') as conn:
+        with sqlite3.connect('records.db') as conn:
             cursor = conn.cursor()
             try:
                 # Check for existing record
@@ -313,7 +313,7 @@ class ANPRModel(BaseModel):
                     (tracking_id, license_number)
                 )
                 if cursor.fetchone():
-                    print(f"TrackingID {tracking_id} already exists.")
+                    # print(f"TrackingID {tracking_id} already exists.")
                     return
 
                 # Insert new record

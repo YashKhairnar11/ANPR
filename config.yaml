@@ -21,14 +21,14 @@ cameras:
       source: 0
       model_used: "YOLOv11DetectionModel"
 
-  # - cam4:
-  #     type: "video"
-  #     task: "Anpr"
-  #     source: 'output_video2.mp4'
-  #     model_used: "ANPRModel"
+  - cam4:
+      type: "video"
+      task: "Anpr"
+      source: 'output_video2.mp4'
+      model_used: "ANPRModel"
 
-#   - cam5:
-#       type: "webcam"
-#       task: "Segmentation"
-#       source: 0
-#       model_used: "YOLOv11DetectionModel"
+  # - cam5:
+  #     type: "video"
+  #     task: "Detection"
+  #     source: 'testvideo3.mp4'
+  #     model_used: "YOLOv11DetectionModel"

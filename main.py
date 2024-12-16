@@ -1,7 +1,7 @@
 import flet as ft
 import yaml
 import logging
-from cameraWindow import CameraWindow
+from cameraWindow import WindowStreamer
 from cameraSelector import CameraSelector
 
 ############ The entire application #############################
@@ -11,14 +11,13 @@ class Application():
         self.config = config
         self.camera_windows = {}
         self.selected_cameras = []
-        
 
     def load_cameras(self):
         cameras = self.config.get('cameras', [])
         for cam_config in cameras:
             for cam_name, cam_details in cam_config.items():
-                self.camera_windows[cam_name] = CameraWindow(cam_name, cam_details)
-        print(self.camera_windows)       
+                self.camera_windows[cam_name] = WindowStreamer(cam_name, cam_details)
+        print(self.camera_windows)      
 
     def on_camera_selection_change(self, selected_cameras):
         self.selected_cameras = selected_cameras
@@ -33,9 +32,10 @@ class Application():
     def create_grid_layout(self):
         if not self.selected_cameras:
             return self.create_no_cameras_card()
+        
         grid_rows = []
         for i in range(0, len(self.selected_cameras), 2):
-            row_controls = [self.camera_windows[cam].build() for cam in self.selected_cameras[i:i+2]]
+            row_controls = [self.camera_windows[cam].build(self.camera_windows[cam].cam_details['source'],cam) for cam in self.selected_cameras[i:i+2]]
             row = ft.Row(
                 controls=row_controls,
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -43,6 +43,7 @@ class Application():
                 expand=True,
             )
             grid_rows.append(row)
+
         print(len(grid_rows))  
         return ft.Column(
             controls=grid_rows,
@@ -102,19 +103,6 @@ class Application():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#########################################################
 def main(page: ft.Page):
     try:
         try:
@@ -125,7 +113,7 @@ def main(page: ft.Page):
 
         page.title = "Accurate Vision Intelli System"
         page.padding = 20
-        page.theme_mode = ft.ThemeMode.LIGHT
+        page.theme_mode = ft.ThemeMode.DARK
         page.theme = ft.Theme(color_scheme_seed=ft.colors.BLUE)
 
         app = Application(config,page)
@@ -139,3 +127,5 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.app(target=main)
+
+    
