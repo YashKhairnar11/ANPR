@@ -1,3 +1,4 @@
+import time
 import flet as ft
 import cv2
 import base64
@@ -7,6 +8,7 @@ import requests
 from websocket import create_connection
 import aiohttp
 import asyncio
+import queue
 
 class WindowStreamer:
     def __init__(self, cam_name, cam_details):
@@ -31,8 +33,9 @@ class WindowStreamer:
         "zoom_in": False,
         "zoom_out": False,
     }
-
-        
+        self.frameq = queue.Queue()
+        self.resultq = queue.Queue()
+ 
     
     def create_table(self,source_id):
         if self.cam_details['task']=='Anpr':
@@ -274,6 +277,8 @@ class WindowStreamer:
 
         # Start a background thread to read frames
         threading.Thread(target=self.read_frames, args=(source_id,), daemon=True).start()
+        time.sleep(2)
+        threading.Thread(target=self.process_frames,daemon=True).start()
 
     # ESTABLISH PTZ CONNECTION FUNCTION
     async def establish_ptz_connection(self, base_url, url):
@@ -355,21 +360,16 @@ class WindowStreamer:
             frameDict['frame'] = frame
 
             try:
-                if self.cam_details['model_used'] == 'ANPRModel':
-                    frame_dict1 = self.model.det_objects(frameDict)
-                    frame_dict2 = self.model.det_plates_ocr(frame_dict1)
-                    res_frame = self.model.plot_bounding_boxes(frame, frame_dict2,self.cam_name)
-                    # Update UI table
-                    self._update_table(source_id)
-                elif self.cam_details['model_used'] == 'YOLOv11DetectionModel':
-                    frameDict1= self.model.predict(frameDict)
-                    res_frame = self.model.plot_bounding_boxes(frame,frameDict1,self.cam_name)
-                    self._update_table(source_id)
-                else:
-                    res_frame = frame
+                if frame_num %2==0:
+                    self.frameq.put(frameDict)
+                    
+                    
+                frame_dict = self.resultq.get()
+                res_frame = self.model.plot_bounding_boxes(frame, frame_dict,self.cam_name)
+                #Update UI table
+                self._update_table(source_id)
                 _, buffer = cv2.imencode(".jpg", res_frame)
                 img_str = base64.b64encode(buffer).decode("utf-8")
-
                 window.content.src_base64 = f"{img_str}"
                 window.update()
 
@@ -377,6 +377,21 @@ class WindowStreamer:
                 print(f"Error processing frame: {e}")
                 break
     
+    def process_frames(self):
+        frameDict = self.frameq.get()
+        
+        if self.cam_details['model_used'] == 'ANPRModel':
+                        frame_dict1 = self.model.det_objects(frameDict)
+                        frame_dict2 = self.model.det_plates_ocr(frame_dict1)
+                        self.resultq.put(frame_dict2)
+                        #res_frame = self.model.plot_bounding_boxes(frame, frame_dict2,self.cam_name)
+                        
+        elif self.cam_details['model_used'] == 'YOLOv11DetectionModel':
+                        frameDict1= self.model.predict(frameDict)
+                        #res_frame = self.model.plot_bounding_boxes(frame,frameDict1,self.cam_name)
+                        self.resultq.put(frameDict1)
+
+
     # PTZ_CAM_CONTROL FUNCTIONS
     async def send_message(self, message):
         try:
