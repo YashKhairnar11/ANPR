@@ -1,7 +1,7 @@
 import flet as ft
 import yaml
 import logging
-from cameraWindow import WindowStreamer
+from cameraWindow_old import WindowStreamer
 from cameraSelector import CameraSelector
 
 ############ The entire application #############################

@@ -90,19 +90,19 @@ class YOLOv11DetectionModel(BaseModel):
             cursor = conn.cursor()
             try:
                 # Check for existing record
-                cursor.execute(
-                    f"SELECT 1 FROM {cam_name} WHERE ID = ? OR Type = ?", 
-                    (tracking_id, object_type )
-                )
-                if cursor.fetchone():
-                    #print(f"TrackingID {tracking_id} already exists.")
-                    return
+                # cursor.execute(
+                #     f"SELECT 1 FROM {cam_name} WHERE  Type = ?", 
+                #     (tracking_id, object_type)     
+                # )
+                # if cursor.fetchone():
+                #     #print(f"TrackingID {tracking_id} already exists.")
+                #     return
 
                 # Insert new record
                 detection_time = datetime.datetime.now().strftime("%H:%M:%S")
                 cursor.execute(
-                    f"INSERT INTO {cam_name} (Time, ID, Type) VALUES (?, ?, ?)",
-                    (detection_time, tracking_id, object_type),
+                    f"INSERT INTO {cam_name} (Time, Type) VALUES (?,?)",
+                    (detection_time, object_type),
                 )
                 conn.commit()
                 
@@ -237,7 +237,7 @@ class ANPRModel(BaseModel):
         # Remove invalid characters
         ocr_text = re.sub(r'[^A-Za-z0-9]', '', text)
         patterns = [
-                    r'^[A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{1,4}$',  # Standard plates
+                  r'^[A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{1,4}$',  # Standard plates
                     # r'^[A-Z]{2}-TEMP-\d{1,5}$',                      # Temporary plates
                     # r'^CD\s\d{1,3}\s\d{1,4}$',                       # Diplomatic plates
                     # r'^[A-Z]{1,2}\s\d{1,2}\s[A-Z]{1}\d{1,4}$',       # Military plates
@@ -246,21 +246,20 @@ class ANPRModel(BaseModel):
                     # r'^[A-Z]{2}\s\d{1,2}\sV\s[A-Z]{1,2}\d{1,2}$',    # Vintage plates
                     # r'^[A-Z]{2}\sBH\s\d{2}\s\d{1,4}$',               # Bharat series
                     # r'^[A-Z]{2}\s\d{1,2}\sTR\s\d{1,4}$',             # Test vehicles
-             ]
+            ]
         for pattern in patterns:
-            if re.match(pattern, ocr_text):
-                # state = ocr_text[:2]
-                # district = ocr_text[2:4]
-                # alphacode = ocr_text[4:6]
-                # digits = ocr_text[6:]
+            if re.match(pattern, ocr_text) and len(ocr_text)==10:
+                state = ocr_text[:2]
+                district = ocr_text[2:4]
+                alphacode = ocr_text[4:6]
+                digits = ocr_text[6:]
                 
-                # # # update with corrections
-                # # if state not in indian_state_abbreviations:
+                # # update with corrections
+                # if state not in indian_state_abbreviations:
                     
                 
-                # license_plate_ = f"{state}-{district}-{alphacode}-{digits}"
-                license_plate_  = ocr_text
-        return license_plate_
+                license_plate_ = f"{state}-{district}-{alphacode}-{digits}"
+        return license_plate_ 
 
 
     def plot_bounding_boxes(self,frame,frameDict,cam_name):
@@ -295,7 +294,7 @@ class ANPRModel(BaseModel):
                     plate_text = plate['text']
 
                     if plate_text != '':
-                        frame = cv2.putText(frame, plate_text, (x_min+xv1, y_min+yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,165,0), 2, cv2.LINE_AA)
+                        frame = cv2.putText(frame, plate_text, (x_min+xv1, y_min+yv1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2, cv2.LINE_AA)
                          #update the db if the record doesn't exists already 
                         self.insert_detection(objectID, objectType, plate_text,cam_name)
                     
@@ -307,22 +306,26 @@ class ANPRModel(BaseModel):
         with sqlite3.connect('records.db') as conn:
             cursor = conn.cursor()
             try:
-                # Check for existing record
+
                 cursor.execute(
-                    f"SELECT 1 FROM {cam_name} WHERE ID = ? OR LicenseNumber = ?", 
-                    (tracking_id, license_number)
+                    f"SELECT 1 FROM {cam_name} WHERE TYPE= ? or  LicenseNumber = ?", 
+                    (vehicle_type,license_number)
                 )
                 if cursor.fetchone():
                     # print(f"TrackingID {tracking_id} already exists.")
                     return
-
+                
                 # Insert new record
                 detection_time = datetime.datetime.now().strftime("%H:%M:%S")
                 cursor.execute(
-                    f"INSERT INTO {cam_name} (Time, ID, Type, LicenseNumber) VALUES (?, ?, ?, ?)",
-                    (detection_time, tracking_id, vehicle_type, license_number),
+                    f"INSERT INTO {cam_name} (Time, Type, LicenseNumber) VALUES (?, ?, ?)",
+                    (detection_time, vehicle_type, license_number),
                 )
+
+                
                 conn.commit()
+
+                
                 
             except sqlite3.Error as e:
                 print(f"Database error: {e}")

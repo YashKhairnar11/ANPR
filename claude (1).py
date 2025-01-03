@@ -2,7 +2,7 @@ import flet as ft
 import cv2
 import base64
 import threading, sqlite3
-from modelFactory import ANPRModel, YOLOv11SegmentationModel, YOLOv11DetectionModel  # Import the ML models
+from finalModelFactory import ANPRModel, YOLOv11SegmentationModel, YOLOv11DetectionModel  # Import the ML models
 import requests
 from websocket import create_connection
 import aiohttp
@@ -45,7 +45,7 @@ class WindowStreamer:
                 heading_row_color=ft.colors.BLACK12,
                 columns=[
                     ft.DataColumn(ft.Text("Time")),
-                    # ft.DataColumn(ft.Text("ID")),
+                    ft.DataColumn(ft.Text("ID")),
                     ft.DataColumn(ft.Text("Type")),
                     ft.DataColumn(ft.Text("License Number")),
                 ],
@@ -53,7 +53,7 @@ class WindowStreamer:
                     ft.DataRow(
                         cells=[
                             ft.DataCell(ft.Text("")),
-                            # ft.DataCell(ft.Text("")),
+                            ft.DataCell(ft.Text("")),
                             ft.DataCell(ft.Text("")),
                             ft.DataCell(ft.Text("")),
                         ]
@@ -69,14 +69,14 @@ class WindowStreamer:
                     heading_row_color=ft.colors.BLACK12,
                     columns=[
                         ft.DataColumn(ft.Text("Time")),
-                        # ft.DataColumn(ft.Text("ID")),
+                        ft.DataColumn(ft.Text("ID")),
                         ft.DataColumn(ft.Text("Type")),
                     ],
                     rows=[
                         ft.DataRow(
                             cells=[
                                 ft.DataCell(ft.Text("")),
-                                # ft.DataCell(ft.Text("")),
+                                ft.DataCell(ft.Text("")),
                                 ft.DataCell(ft.Text("")),
                             ]
                         ) for _ in range(3)
@@ -95,17 +95,17 @@ class WindowStreamer:
                 cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {self.cam_name} (
                     Time TEXT,
+                    ID TEXT,
                     Type TEXT,
                     LicenseNumber TEXT 
                 )
                 """)
-
-                # can add ID TEXT
                 cursor.execute(f"DELETE FROM {self.cam_name}")
             else:
                 cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {self.cam_name} (
                     Time TEXT,
+                    ID TEXT,
                     Type TEXT
                 )
                 """)
@@ -130,19 +130,19 @@ class WindowStreamer:
         """Update the table with latest records"""
         records = self._fetch_latest_records()
         while len(records)<5:
-            records.append(("--","--","--") if self.type=='Anpr' else ("--","--"))
+            records.append(("--","--","--","--") if self.type=='Anpr' else ("--","--","--"))
 
         table=self.data_tables[source_id]
         for i, record in enumerate(records[:3]):
             if self.type=='Anpr':
                 table.rows[i].cells[0].content.value=str(record[0]) #Time
-                table.rows[i].cells[1].content.value=record[1] 
+                table.rows[i].cells[1].content.value=record[1] #ID
                 table.rows[i].cells[2].content.value=record[2] #Type
-                # table.rows[i].cells[3].content.value=record[3] #License NUmber
+                table.rows[i].cells[3].content.value=record[3] #License NUmber
             else:
                 table.rows[i].cells[0].content.value=str(record[0]) #Time
-                table.rows[i].cells[1].content.value=record[1] 
-                # table.rows[i].cells[2].content.value=record[2] #Type
+                table.rows[i].cells[1].content.value=record[1] #ID
+                table.rows[i].cells[2].content.value=record[2] #Type
         #Refresh table to apply changes
         table.update()
 
@@ -230,7 +230,7 @@ class WindowStreamer:
                         divisions=10,
                         label="{value}%",
                         expand=True,
-                        on_change=lambda e: asyncio.run(self.handle_zoom_change(e.control.value))  # Attach zoom handling
+                        on_change=lambda e: asyncio.create_task(self.handle_zoom_change(e.control.value))  # Attach zoom handling
                     ),
                 ], alignment=ft.MainAxisAlignment.CENTER),
             ])
@@ -443,7 +443,6 @@ class WindowStreamer:
     def read_frames(self, source_id):
         connection = self.connections[source_id]
         cap = connection["cap"]
-        #print(cap.get(cv2.CAP_PROP_FPS))
         window = self.streaming_windows[source_id]
 
         process_queue = Queue(maxsize=10)  # Queue for frames to be processed
@@ -460,7 +459,7 @@ class WindowStreamer:
         processing_thread.start()
         self._update_table(source_id)
 
-        while connection['is_connected']: 
+        while connection['is_connected']:
             ret, frame = cap.read()
             if not ret:
                 print("Cannot connect to source!")
@@ -470,7 +469,7 @@ class WindowStreamer:
             frame_dict = {'frameNum': frame_num, 'frame': frame}
 
             # Send alternate frames to the processing queue
-            if frame_num % 1 == 0 and not process_queue.full():
+            if frame_num % 2 == 0 and not process_queue.full():
                 process_queue.put(frame_dict)
 
             processed_frame_dict= last_processed_result.get("frameDict")
@@ -487,8 +486,6 @@ class WindowStreamer:
                 if not table_update_queue.empty():
                     table_update_queue.get()
                     self._update_table(source_id)
-
-                time.sleep(0.05)
             except Exception as e:
                 print(f"Error displaying frame: {e}")
                 break
