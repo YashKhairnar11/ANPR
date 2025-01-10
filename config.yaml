@@ -7,13 +7,13 @@ cameras:
 #       url: 'ws://192.168.1.111/cgi-bin/event-websock/streaming.cgi'
 #       base_url: 'http://192.168.1.111'
 
-  # - cam2:
-  #     type: "ptz_fixed"
-  #     task: "Anpr"
-  #     source: 'rtsp://192.168.1.112'
-  #     model_used: "ANPRModel"
-  #     url: 'ws://192.168.1.112/cgi-bin/event-websock/streaming.cgi'
-  #     base_url: 'http://192.168.1.112'
+  - cam2:
+      type: "ptz_fixed"
+      task: "Anpr"
+      source: 'rtsp://192.168.1.111'
+      model_used: "ANPRModel"
+      url: 'ws://192.168.1.111/cgi-bin/event-websock/streaming.cgi'
+      base_url: 'http://192.168.1.111'
 
   # - cam3:
   #     type: "webcam"
@@ -27,11 +27,11 @@ cameras:
   #     source: 'video1.mp4'
   #     model_used: "ANPRModel"
 
-  - cam5:
-      type: "video"
-      task: "Anpr"
-      source: 'demovideo.mp4'
-      model_used: "ANPRModel"
+#   - cam5:
+#       type: "video"
+#       task: "Anpr"
+#       source: 'demovideo.mp4'
+#       model_used: "ANPRModel"
 
 
   # # - cam5:

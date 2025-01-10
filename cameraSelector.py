@@ -10,22 +10,33 @@ class CameraSelector:
         for cam_name in self.cameras:
             checkbox = ft.Checkbox(
                 label=cam_name,
+                label_style=ft.TextStyle(color=ft.colors.BLACK, weight=ft.FontWeight.BOLD),  # Change label color to red
                 value=False,
-                on_change=self.handle_checkbox_change
+                on_change=self.handle_checkbox_change,
+                check_color=ft.colors.GREEN,
+                fill_color=ft.colors.BLACK,
             )
             self.checkboxes.append(checkbox)
+
+        img =ft.Image(
+            src='assets/group-logo.png',
+            width=250,
+            height=175,
+            fit=ft.ImageFit.CONTAIN
+        )
 
         return ft.Container(
             content=ft.Column(
                 controls=[
-                    ft.Text("Select Cameras (Max 4):", size=16, weight=ft.FontWeight.BOLD),
+                    img,
+                    ft.Text("Select Cameras (Max 4):", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.BLACK),
                     *self.checkboxes
                 ],
                 spacing=10
             ),
             padding=20,
             border_radius=10,
-            bgcolor=ft.colors.SURFACE,
+            bgcolor=ft.colors.WHITE,
             shadow=ft.BoxShadow(
                 spread_radius=1,
                 blur_radius=10,

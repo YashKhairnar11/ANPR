@@ -470,7 +470,7 @@ class WindowStreamer:
             frame_dict = {'frameNum': frame_num, 'frame': frame}
 
             # Send alternate frames to the processing queue
-            if frame_num % 1 == 0 and not process_queue.full():
+            if frame_num % 2 == 0 and not process_queue.full():
                 process_queue.put(frame_dict)
 
             processed_frame_dict= last_processed_result.get("frameDict")
@@ -488,7 +488,6 @@ class WindowStreamer:
                     table_update_queue.get()
                     self._update_table(source_id)
 
-                time.sleep(0.05)
             except Exception as e:
                 print(f"Error displaying frame: {e}")
                 break
