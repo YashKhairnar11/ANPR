@@ -16,7 +16,8 @@ class WindowStreamer:
         self.cam_details = cam_details
         self.connections = {}  # To manage multiple sources and their states
         self.streaming_windows = {}
-        self.type = cam_details['task']
+        self.task = cam_details['task']
+        self.type = cam_details['type']
 
         # Initialize the model based on cam_details
         self.model = self.initialize_model()
@@ -39,7 +40,7 @@ class WindowStreamer:
 
     # create_table function is used to create tables in ui using flet.
     def create_table(self,source_id):
-        if self.cam_details['task']=='Anpr':
+        if self.task=='Anpr':
             """Create ANPR data table"""
             data_table =  ft.DataTable(
                 heading_row_color=ft.colors.BLACK12,
@@ -130,11 +131,11 @@ class WindowStreamer:
         """Update the table with latest records"""
         records = self._fetch_latest_records()
         while len(records)<5:
-            records.append(("--","--","--") if self.type=='Anpr' else ("--","--"))
+            records.append(("--","--","--") if self.task=='Anpr' else ("--","--"))
 
         table=self.data_tables[source_id]
         for i, record in enumerate(records[:3]):
-            if self.type=='Anpr':
+            if self.task=='Anpr':
                 table.rows[i].cells[0].content.value=str(record[0]) #Time
                 table.rows[i].cells[1].content.value=record[1] 
                 table.rows[i].cells[2].content.value=record[2] #Type
@@ -161,36 +162,6 @@ class WindowStreamer:
         else:
             return None  # Default to no model if not specified
     
-    
-    # create_ptz_controls function is used to create ptz controls for ptz cam_type.
-    # def create_ptz_controls(self, source_id):
-    #     # create_button function defines the generic layout and this layout is used below to create all ptz cotrol buttons.
-    #     def create_button(icon, color, action):
-    #         return ft.IconButton(
-    #             icon,
-    #             icon_color=color,
-    #             on_click=lambda e: asyncio.run(self.toggle_ptz_action(action, e))  # Attach PTZ control function
-    #         )
-
-    #     # Create the PTZ control column
-    #     return ft.Column([
-    #         ft.Row([
-    #             create_button(ft.icons.ARROW_UPWARD, ft.colors.BLUE, "up"),       # Up button
-    #             create_button(ft.icons.ARROW_DOWNWARD, ft.colors.BLUE, "down"),   # Down button
-    #             create_button(ft.icons.ARROW_BACK, ft.colors.BLUE, "left"),       # Left button
-    #             create_button(ft.icons.ARROW_FORWARD, ft.colors.BLUE, "right"),   # Right button
-    #             create_button(ft.icons.SWIPE, ft.colors.RED, "wiper"),            # Wiper button
-    #             ft.Slider(
-    #                 min=0,
-    #                 max=100,
-    #                 divisions=10,
-    #                 label="{value}%",
-    #                 expand=True,
-    #                 on_change=lambda e: asyncio.run(self.handle_zoom_change(e.value))  # Attach zoom handling
-    #             ),
-    #         ], alignment=ft.MainAxisAlignment.CENTER),
-    #     ])
-
     def create_ptz_controls(self, source_id):
         # create_button function defines the generic layout and this layout is used below to create all ptz cotrol buttons.
         def create_button(icon, color, action):
@@ -397,47 +368,6 @@ class WindowStreamer:
         if self.session:
             await self.session.close()
     
-    # # ORIGINAL READ FRAMES FUNCTION
-    # def read_frames(self, source_id):
-    #     connection = self.connections[source_id]
-    #     cap = connection["cap"]
-    #     window = self.streaming_windows[source_id]
-
-    #     frame_num = 0
-    #     while connection['is_connected']:
-    #         frameDict = {}
-    #         ret, frame = cap.read()
-    #         if not ret:
-    #             print("Cannot connect to source!")
-    #             break
-
-    #         frame_num += 1
-    #         frameDict['frameNum'] = frame_num
-    #         frameDict['frame'] = frame
-
-    #         try:
-    #             if self.cam_details['model_used'] == 'ANPRModel':
-    #                 frame_dict1 = self.model.det_objects(frameDict)
-    #                 frame_dict2 = self.model.det_plates_ocr(frame_dict1)
-    #                 res_frame = self.model.plot_bounding_boxes(frame, frame_dict2,self.cam_name)
-    #                 # Update UI table
-    #                 self._update_table(source_id)
-    #             elif self.cam_details['model_used'] == 'YOLOv11DetectionModel':
-    #                 frameDict1= self.model.predict(frameDict)
-    #                 res_frame = self.model.plot_bounding_boxes(frame,frameDict1,self.cam_name)
-    #                 self._update_table(source_id)
-    #             else:
-    #                 res_frame = frame
-    #             _, buffer = cv2.imencode(".jpg", res_frame)
-    #             img_str = base64.b64encode(buffer).decode("utf-8")
-
-    #             window.content.src_base64 = f"{img_str}"
-    #             window.update()
-
-    #         except Exception as e:
-    #             print(f"Error processing frame: {e}")
-    #             break
-
 
     # UPDATED READ FRAMES FUNCTION
     def read_frames(self, source_id):
@@ -488,6 +418,8 @@ class WindowStreamer:
                     table_update_queue.get()
                     self._update_table(source_id)
 
+                if self.type=='video' and self.task=='Anpr':  # to adjust fps for video and anpr 
+                    time.sleep(0.05)
             except Exception as e:
                 print(f"Error displaying frame: {e}")
                 break
@@ -531,6 +463,7 @@ class WindowStreamer:
         self.ptz_active[action] = not self.ptz_active[action]
         message = self.get_ptz_message(action, self.ptz_active[action])
         await self.send_message(message)
+        await self.send_message("type=ptz&focus=pushaf&user=admin&host=192.168.1.135")
 
     def get_ptz_message(self, action, active):
         messages = {
@@ -544,7 +477,6 @@ class WindowStreamer:
             "update_zoom":"type=ptz&position=set&zoom_pos={zoom_value}" if active else "type=ptz&move=stop",
         }
         return messages.get(action, "Invalid action!!!")
-    
     
 
     def build(self, source_id, cam_name):

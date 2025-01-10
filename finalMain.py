@@ -106,7 +106,7 @@ class Application():
 def main(page: ft.Page):
     try:
         try:
-            with open('config.yaml', 'r') as file:
+            with open('/home/yash/Desktop/ANPR/config.yaml', 'r') as file:
                 config = yaml.safe_load(file)
         except (FileNotFoundError, IOError):
             print("No config.yaml found. Using default configuration.")

@@ -19,7 +19,7 @@ class CameraSelector:
             self.checkboxes.append(checkbox)
 
         img =ft.Image(
-            src='assets/group-logo.png',
+            src='/home/yash/Desktop/ANPR/assets/group-logo.png',
             width=250,
             height=175,
             fit=ft.ImageFit.CONTAIN

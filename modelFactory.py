@@ -14,7 +14,7 @@ class BaseModel:
 
 ############ Object Detection #################################
 class YOLOv11DetectionModel(BaseModel):
-    def __init__(self, model_path='yolo11n.pt'):
+    def __init__(self, model_path='/home/yash/Desktop/ANPR/yolo11n.pt'):
         self.model = YOLO(model_path)
         self.tracker = Sort()
         self.to_be_tracked_objects = []
@@ -128,8 +128,8 @@ class YOLOv11SegmentationModel(BaseModel):
 ######## ANPR for number plate detection ######################
 class ANPRModel(BaseModel):
     def __init__(self):
-        self.objectModel = YOLO("yolo11n.pt")
-        self.plateModel = YOLO('license_plate_detector.pt')
+        self.objectModel = YOLO("/home/yash/Desktop/ANPR/yolo11n.pt")
+        self.plateModel = YOLO('/home/yash/Desktop/ANPR/license_plate_detector.pt')
         self.ocr = PaddleOCR(lang='en',det=False, cls=False)
         self.tracker = Sort()
         self.classes = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light', 10: 
